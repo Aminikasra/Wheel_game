@@ -1,0 +1,93 @@
+ <!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مدیریت گردونه شانس</title>
+    <style>
+        body { font-family: Tahoma; text-align: center; background: #f0f2f5; margin: 0; padding: 20px; }
+        .container { max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .btn { background: #e74c3c; color: white; border: none; padding: 12px 25px; font-size: 16px; border-radius: 8px; cursor: pointer; margin: 10px; }
+        .qr-container { margin: 20px 0; padding: 20px; border: 2px dashed #ddd; border-radius: 10px; }
+        .stats { background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 مدیریت گردونه شانس</h1>
+        <p>QR کد یکبار مصرف برای تراکت فروشگاه</p>
+        
+        <button class="btn" onclick="generateQR()">تولید QR کد جدید</button>
+        
+        <div class="qr-container">
+            <div id="qrCode"></div>
+            <div id="qrInfo"></div>
+        </div>
+        
+        <div class="stats">
+            <h3>📊 آمار</h3>
+            <p>تعداد تولید شده: <span id="totalCount">0</span></p>
+            <p>تعداد استفاده شده: <span id="usedCount">0</span></p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.0/build/qrcode.min.js"></script>
+    <script>
+        class QRManager {
+            constructor() {
+                this.storageKey = 'wheelQRCodes';
+                if (!localStorage.getItem(this.storageKey)) {
+                    localStorage.setItem(this.storageKey, JSON.stringify({
+                        qrcodes: {}, stats: { total: 0, used: 0 }
+                    }));
+                }
+            }
+            getData() { return JSON.parse(localStorage.getItem(this.storageKey)); }
+            saveData(data) { localStorage.setItem(this.storageKey, JSON.stringify(data)); }
+            generateQR() {
+                const data = this.getData();
+                const qrId = 'QR_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+                const wheelUrl = window.location.href.replace('index.html', '') + 'wheel.html?q=' + qrId;
+                data.qrcodes[qrId] = { id: qrId, used: false, created: new Date().toLocaleString('fa-IR'), result: null };
+                data.stats.total++;
+                this.saveData(data);
+                return { id: qrId, url: wheelUrl };
+            }
+            useQR(qrId) {
+                const data = this.getData();
+                if (data.qrcodes[qrId] && !data.qrcodes[qrId].used) {
+                    data.qrcodes[qrId].used = true;
+                    data.stats.used++;
+                    this.saveData(data);
+                    return true;
+                }
+                return false;
+            }
+            getStats() { return this.getData().stats; }
+        }
+        const qrManager = new QRManager();
+        function generateQR() {
+            const qrData = qrManager.generateQR();
+            document.getElementById('qrCode').innerHTML = '';
+            QRCode.toCanvas(document.getElementById('qrCode'), qrData.url, {
+                width: 200, margin: 2, color: { dark: '#000000', light: '#FFFFFF' }
+            });
+            document.getElementById('qrInfo').innerHTML = `
+                <div style="margin-top: 15px; padding: 10px; background: #e8f5e8; border-radius: 5px;">
+                    <p><strong>شناسه:</strong> ${qrData.id}</p>
+                    <p><strong>لینک:</strong> <br><small>${qrData.url}</small></p>
+                    <button class="btn" onclick="printPage()" style="background: #27ae60;">چاپ QR کد</button>
+                </div>
+            `;
+            updateStats();
+        }
+        function printPage() { window.print(); }
+        function updateStats() {
+            const stats = qrManager.getStats();
+            document.getElementById('totalCount').textContent = stats.total;
+            document.getElementById('usedCount').textContent = stats.used;
+        }
+        window.onload = updateStats;
+    </script>
+</body>
+</html>
